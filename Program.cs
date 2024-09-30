@@ -1,4 +1,4 @@
-﻿#define ENGLISH
+﻿#define ENGLISH     //注释该行以加载中文模式
 
 // See https://aka.ms/new-console-template for more information
 using System.Collections;

@@ -9,6 +9,11 @@ namespace gear;
 
 //关于资源管理部分后期考虑使用using
 
+struct InventoryItem
+{
+    public string model;
+    public int quantity;
+}
 class GearManagement
 {
     //private Dictionary<string, int> gearInventory = new();      
@@ -32,11 +37,11 @@ class GearManagement
         {
             SQLiteConnection.CreateFile(databasePath);
             Console.WriteLine($"Database created at {databasePath}.");
-            using (SQLiteConnection tempConnection = new SQLiteConnection($"Data Source={databasePath}"))
+            using (SQLiteConnection tempConnection = new($"Data Source={databasePath}"))
             {
                 tempConnection.Open();
                 string createTableQuery = "CREATE TABLE IF NOT EXISTS GearInventory(ID INTEGER PRIMARY KEY AUTOINCREMENT, Model TEXT, Quantity INTEGER)";
-                using (SQLiteCommand command = new SQLiteCommand(createTableQuery, tempConnection))
+                using (SQLiteCommand command = new(createTableQuery, tempConnection))
                 {
                     command.ExecuteNonQuery();
                 }
@@ -56,7 +61,7 @@ class GearManagement
             if (quantity >= 0)
             {
                 string checkQuery = $"SELECT Quantity FROM GearInventory WHERE Model = '{model}'";
-                SQLiteCommand checkCommand = new SQLiteCommand(checkQuery, connection);
+                SQLiteCommand checkCommand = new(checkQuery, connection);
                 object result = checkCommand.ExecuteScalar();
                 int existingQuantity = result == null ? 0 : Convert.ToInt32(result);
                 int newQuantity = existingQuantity + quantity;
@@ -66,7 +71,7 @@ class GearManagement
                 {
                     updateQuery = $"INSERT INTO GearInventory (Model, Quantity) VALUES ('{model}', {quantity})";
                 }
-                SQLiteCommand command = new SQLiteCommand(updateQuery, connection);
+                SQLiteCommand command = new(updateQuery, connection);
                 command.ExecuteNonQuery();
                 state =  newQuantity;
             }
@@ -94,7 +99,7 @@ class GearManagement
         {
             connection.Open();
             string checkQuery = $"SELECT Quantity FROM GearInventory WHERE Model = '{model}'";
-            SQLiteCommand checkCommand = new SQLiteCommand(checkQuery, connection);
+            SQLiteCommand checkCommand = new(checkQuery, connection);
             object result = checkCommand.ExecuteScalar();
 
             if (result == null || Convert.ToInt32(result) < quantity || quantity < 0)
@@ -103,7 +108,7 @@ class GearManagement
             }
             int newQuantity = Convert.ToInt32(result) - quantity;
             string updateQuery = $"UPDATE GearInventory SET Quantity = {newQuantity} WHERE Model = '{model}'";
-            SQLiteCommand command = new SQLiteCommand(updateQuery, connection);
+            SQLiteCommand command = new(updateQuery, connection);
             command.ExecuteNonQuery();
             return newQuantity;
         }
@@ -124,7 +129,7 @@ class GearManagement
         {
             connection.Open();
             string query = $"SELECT Quantity FROM GearInventory WHERE Model = '{model}'";
-            SQLiteCommand command = new SQLiteCommand(query, connection);
+            SQLiteCommand command = new(query, connection);
             object result = command.ExecuteScalar();
             return result == null ? 0 : Convert.ToInt32(result);
         }
@@ -145,7 +150,7 @@ class GearManagement
         {
             connection.Open();
             string query = "SELECT Model, Quantity FROM GearInventory";
-            SQLiteCommand command = new SQLiteCommand(query, connection);
+            SQLiteCommand command = new(query, connection);
             SQLiteDataReader reader = command.ExecuteReader();
             Console.WriteLine("Model\t\tQuantity");
             string horizontalLine = new('-', 50);
@@ -225,4 +230,34 @@ class GearManagement
         }
         return state;
     }
+
+    public List<InventoryItem> GetInventory()
+    {
+        List<InventoryItem> inventory = new();
+        try
+        {
+            connection.Open();
+            string query = "SELECT Model, Quantity FROM GearInventory";
+            SQLiteCommand command = new(query, connection);
+            SQLiteDataReader reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                InventoryItem item;
+                item.model = reader.GetString(0);
+                item.quantity = reader.GetInt32(1);
+                inventory.Add(item);
+            }
+            reader.Close();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting inventory: {ex.Message}");
+        }
+        finally
+        {
+            connection.Close();
+        }
+        return inventory;
+    }
+    
 }

@@ -1,7 +1,8 @@
-﻿#define ENGLISH     //注释该行以加载中文模式
+﻿//#define ENGLISH     //注释该行以加载中文模式
 
 // See https://aka.ms/new-console-template for more information
 using System.Collections;
+using System.Configuration;
 using System.Drawing;
 using System.Formats.Tar;
 using gear;
@@ -29,20 +30,6 @@ using gear;
 #endif
 
 
-//Console.WriteLine("Hello, World!");
-// motor motor1 = new motor("A1");
-// motor1.add_gear(1);
-// motor1.add_gear(3);
-// //motor1.show_gear();
-// ArrayList gear = motor1.get_gear();
-
-
-// for (int i = 0; i < gear.Count; i++)
-// {
-//     System.Console.WriteLine("gear: " + gear[i]);
-// }
-// System.Console.WriteLine(motor1.getName());
-
 void ColorfulWrite(string str, ConsoleColor color)
 {
     Console.ForegroundColor = color;
@@ -68,14 +55,14 @@ while (true) {
 
     if (arg.Length != 3 && arg.Length != 1)
     {
-        Console.WriteLine(ErrInput);
+        ColorfulWrite(ErrInput, ConsoleColor.Red);
         continue;
     }
     bool checkArg = true;
     int cmd, quantity = 0;
     checkArg = int.TryParse(arg[0], out cmd);
-    if (checkArg && (cmd < -1 || cmd > 2))
-    {
+    if (checkArg && (cmd < -1 || cmd > 4))      //输入检查，由于添加DeleteItem此处接受cmd == 3。使用cmd == 3时需额外提供一参数以逃逸检查。
+    {                                           //该使用方式仅为测试暂时增添
         checkArg = false;
     }
     if (checkArg && arg.Length > 1)
@@ -102,7 +89,15 @@ while (true) {
         break;
     }else if(cmd == 0){
         ColorfulWrite(showInv, ConsoleColor.Green);
-        gm.DisplayInventory();
+        //gm.DisplayInventory();
+        List<InventoryItem> inventory = gm.GetInventory();
+        Console.WriteLine("Model\t\tQuantity");
+        string horizontalLine = new('-', 50);
+        Console.WriteLine(horizontalLine);
+        foreach (var item in inventory)
+        {
+            Console.WriteLine($"{item.model}\t\t{item.quantity}");
+        }
     }else if(cmd == 1){
         int act = gm.AddGear(arg[1], quantity);
         if (act != -1)
@@ -123,13 +118,34 @@ while (true) {
         {
             ColorfulWrite(opFailed, ConsoleColor.Red);
         }
+    }else if(cmd == 3){
+        int act = gm.DeleteItem(arg[1]);
+        if (act == 0)
+        {
+            ColorfulWrite($"No Model found: {arg[1]}", ConsoleColor.Red);
+        }
+        else if (act == -1)
+        {
+            ColorfulWrite("Operation Error!", ConsoleColor.Red);
+        }
+        else if (act > 0)
+        {
+            ColorfulWrite($"Successfully deleted {arg[1]}", ConsoleColor.Green);
+        }
+    }else if (cmd == 4){
+        int act = gm.AddItem(arg[1]);
+        if (act == 0)
+        {
+            ColorfulWrite($"Successfully added {arg[1]}", ConsoleColor.Green);
+        }
+        else if (act == 1)
+        {
+            ColorfulWrite($"Already exist {arg[1]}", ConsoleColor.Red);
+        }
+        else
+        {
+            ColorfulWrite(opFailed, ConsoleColor.Red);
+        }
     }
 
 }
-
-
-
-// gm.AddOrUpdateGear("Model A", 50);
-// gm.AddOrUpdateGear("Model B", 100);
-// gm.RemoveGear("Model A", 30);
-// gm.DisplayInventory();

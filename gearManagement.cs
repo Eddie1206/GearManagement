@@ -6,6 +6,9 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Data.Entity;
 namespace gear;
+
+//关于资源管理部分后期考虑使用using
+
 class GearManagement
 {
     //private Dictionary<string, int> gearInventory = new();      
@@ -46,6 +49,7 @@ class GearManagement
     }
     public int AddGear(string model, int quantity)      //添加齿轮，成功返回最新数量，错误返回-1错误码
     {
+        int state;
         try
         {
             connection.Open();
@@ -64,23 +68,24 @@ class GearManagement
                 }
                 SQLiteCommand command = new SQLiteCommand(updateQuery, connection);
                 command.ExecuteNonQuery();
-                return newQuantity;
+                state =  newQuantity;
             }
             else
             {
-                return -1;
+                state = -1;
             }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error adding gear: {ex.Message}");
-            return -1;
+            state =  -1;
         }
         finally
         {
             connection.Close();
+            
         }
-        
+        return state;
     }
 
     public int RemoveGear(string model, int quantity)      //如果可行减去齿轮数量，否则返回-1错误码
@@ -162,5 +167,62 @@ class GearManagement
         {
             connection.Close();
         }
+    }
+
+    public int AddItem(string model)        //增加齿轮型号，返回：0添加正常，1已存在，-1执行异常
+    {
+        int state = 0;
+        try
+        {
+            connection.Open();
+            string checkQuery = $"SELECT Quantity FROM GearInventory WHERE Model = '{model}'";
+            SQLiteCommand checkCommand = new SQLiteCommand(checkQuery, connection);
+            object result = checkCommand.ExecuteScalar();
+            if (result == null)
+            {
+                string updateQuery = $"INSERT INTO GearInventory (Model, Quantity) VALUES ('{model}', 0)";
+                SQLiteCommand command = new SQLiteCommand(updateQuery, connection);
+                command.ExecuteNonQuery();
+                state = 0;
+            }
+            else
+            {
+                state = 1;
+            }
+        } 
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding Item: {ex.Message}");
+            state = -1;
+        }
+        finally
+        {
+            connection.Close();
+        }
+        return state;
+    }
+
+    public int DeleteItem(string model)     //删除齿轮型号，返回：0正常，-1异常
+    {
+        int state = 0;
+        try
+        {
+            connection.Open();
+            string deleteQuery = $"DELETE FROM GearInventory WHERE Model = '{model}'";
+            using (SQLiteCommand command = new(deleteQuery, connection))
+            {
+                state = command.ExecuteNonQuery();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting: {ex.Message}");
+            state = -1;
+        }
+        finally
+        {
+            connection.Close();
+        }
+        return state;
     }
 }

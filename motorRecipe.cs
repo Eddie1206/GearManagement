@@ -84,6 +84,7 @@ public struct SingleRecipe : IComparable<SingleRecipe>
 class MotorRecipe
 {   
     private const string connectionString = "Data Source=motorRecipe.db;Version=3";
+    private const string connectionStr = "Data Source=motorRecipe.db";
     private SQLiteConnection connection;
     private GearManagement gearHub;
     private HashSet<SingleRecipe> recipe = new();
@@ -102,6 +103,7 @@ class MotorRecipe
 
     private void CreateDatabase(string databasePath)
     {
+        //准备迁移至SqliteConnection指令
         try
         {
             SQLiteConnection.CreateFile(databasePath);
@@ -127,38 +129,57 @@ class MotorRecipe
     public void addRecipe(string model, ref List<GearInfo> gearInfos)
     {
         //添加配方
-        //检查配方冗余
         //connection.close需要修改
-        connection.Open();
-        string gears = "";
-        string nums = "";
-        if (checkDuplicate(gearInfos))
+        
+        //connection.Open();
+        try
         {
-            Debug.WriteLine("失败：齿轮型号输入重复");
-            return;
-        }
-        if (gearInfos != null)
-        {
-            gearInfos.Sort();
-            foreach (GearInfo gearInfo in gearInfos)
+            using (var connection = new SqliteConnection(connectionStr))
             {
-                gears += gearInfo.model + " ";
-                nums += gearInfo.quantity + " ";
+                connection.Open();
+                string gears = "";
+                string nums = "";
+                if (checkDuplicate(gearInfos))
+                {
+                    Debug.WriteLine("失败：齿轮型号输入重复");
+                    return;
+                }
+
+                if (gearInfos != null)
+                {
+                    gearInfos.Sort();
+                    foreach (GearInfo gearInfo in gearInfos)
+                    {
+                        gears += gearInfo.model + " ";
+                        nums += gearInfo.quantity + " ";
+                    }
+                }
+
+                if (!recipe.Add(new SingleRecipe(model, gears, nums)))
+                {
+                    Console.WriteLine("配方已存在！");
+                    connection.Close();
+                    return;
+                }
+                var command = connection.CreateCommand();
+                command.CommandText =
+                    @"INSERT INTO MotorRecipe (Model, Gears, Quantity) VALUES ($model, $gears, $nums)";
+
+                command.Parameters.AddWithValue("$model", model);
+                command.Parameters.AddWithValue("$gears", gears);
+                command.Parameters.AddWithValue("$nums", nums);
+                command.ExecuteNonQuery();
             }
         }
-
-        if (!recipe.Add(new SingleRecipe(model, gears, nums)))
+        catch (Exception ex)
         {
-            Console.WriteLine("配方已存在！");
-            connection.Close();
-            return;
+            Console.WriteLine($"Error in addRecipe(): {ex.Message}");
+            throw;
         }
-        string updateQuery = $"INSERT INTO MotorRecipe (Model, Gears, Quantity) VALUES ('{model}', '{gears}', '{nums}')";
         
-        SQLiteCommand command = new(updateQuery, connection);
-        command.ExecuteNonQuery();
-        connection.Close();
+        
     }
+
 
     public void updateMotor_useModel(string model, ref List<GearInfo> gearInfos)
     {
@@ -196,7 +217,10 @@ class MotorRecipe
     {
         //通过id更新配方
         //判断是否包含重复并sort
+        
+        //暂不完善，需添加原子一致性
         int state = 0;
+        
         connection.Open();
         string query = $"SELECT Model FROM motorRecipe WHERE ID = '{id}'";
         SQLiteCommand command = new(query, connection);
@@ -252,9 +276,10 @@ class MotorRecipe
     }
 
     
-    public int DeleteItem(int id)     //删除Motor型号，返回：0正常，-1异常
+    public int DeleteItem_outdated(int id)     //删除Motor型号，返回：0正常，-1异常
     {
         //！！当前方法存在问题，结束后再执行ExecuteNonQuery会出现问题
+        //该方法已淘汰
         int state = 0;
         try
         {
@@ -269,6 +294,8 @@ class MotorRecipe
                     string gears = reader.GetString(1);
                     string nums = reader.GetString(2);
                 }
+
+                reader.Dispose();
             }
             string deleteQuery = $"DELETE FROM MotorRecipe WHERE ID = '{id}'";
             using (SQLiteCommand command = new(deleteQuery, connection))
@@ -284,41 +311,51 @@ class MotorRecipe
         finally
         {
             connection.Close();
+            //connection.Dispose();
         }
         return state;
     }
     
-    public int DeleteItemAdo(int id)
+    public int DeleteItem(int id)
     {
-        string connectionString = $"Data Source=motorRecipe.db";
-        using (var connection = new SqliteConnection(connectionString))
+        int state = 0;
+        try
         {
-            connection.Open();
-            var command = connection.CreateCommand();
-            command.CommandText =
-                @"SELECT Model, Gears, Quantity FROM MotorRecipe WHERE ID = $id";
-            command.Parameters.AddWithValue("$id", id);
-            using (var reader = command.ExecuteReader())
+            using (var connection = new SqliteConnection(connectionStr))
             {
-                while (reader.Read())
+                connection.Open();
+                var command = connection.CreateCommand();
+                command.CommandText =
+                    @"SELECT Model, Gears, Quantity FROM MotorRecipe WHERE ID = $id";
+                command.Parameters.AddWithValue("$id", id);
+                using (var reader = command.ExecuteReader())
                 {
-                    var name = reader.GetString(0);
-                    var gears = reader.GetString(1);
-                    var nums = reader.GetString(2);
-                    recipe.Remove(new SingleRecipe(name, gears, nums));
+                    while (reader.Read())
+                    {
+                        var name = reader.GetString(0);
+                        var gears = reader.GetString(1);
+                        var nums = reader.GetString(2);
+                        recipe.Remove(new SingleRecipe(name, gears, nums));
+                    }
                 }
             }
+
+            using (var connection = new SqliteConnection(connectionStr))
+            {
+                connection.Open();
+                var command = connection.CreateCommand();
+                command.CommandText = @"DELETE FROM MotorRecipe WHERE ID = $id";
+                command.Parameters.AddWithValue("$id", id);
+                command.ExecuteNonQuery();
+            }
         }
-        using (var connection = new SqliteConnection(connectionString))
+        catch (Exception ex)
         {
-            connection.Open();
-            var command = connection.CreateCommand();
-            command.CommandText = @"DELETE FROM MotorRecipe WHERE ID = $id";
-            command.Parameters.AddWithValue("$id", id);
-            command.ExecuteNonQuery();
+            Console.WriteLine($"Error deleting: {ex.Message}");
+            state = -1;
         }
 
-        return 0;
+        return state;
     }
     public void DisplayRecipe()      //打印配方
     {

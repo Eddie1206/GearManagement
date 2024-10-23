@@ -1,3 +1,5 @@
+//Eddie 包 发布于2024/10/23，功能基本实现。 V1.0
+//功能及一致性有待完善
 using System;
 using System.Collections.Generic;
 using System.Data.Entity.Core.Metadata.Edm;

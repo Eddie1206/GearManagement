@@ -1,3 +1,5 @@
+//Eddie 包 发布于2024/10/23，功能基本实现。V1.0
+//功能及一致性有待完善
 using System.Collections;
 using System.Diagnostics.Metrics;
 using System.Reflection.Metadata.Ecma335;
@@ -5,6 +7,7 @@ using System.Data.SQLite;
 using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Data.Entity;
+
 namespace gear;
 
 //关于资源管理部分后期考虑使用using

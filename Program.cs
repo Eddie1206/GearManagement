@@ -299,10 +299,11 @@ while (true) {
                     break;
                 case 4:
                     //testUse
-                    List<GearInfo> getGearInfos = mr.GetRecipeUseId(int.Parse(arg[1]));
-                    foreach (GearInfo gearInfo in getGearInfos)
+                    List<SingleRecipe> recipes = mr.GetRecipeList();
+                    foreach (SingleRecipe recipe in recipes)
                     {
-                        ColorfulWrite($"Gear: {gearInfo.model}, Quantity: {gearInfo.quantity}", ConsoleColor.Green);
+                        Console.WriteLine();
+                        ColorfulWrite(recipe.ToString(), ConsoleColor.Green);
                     }
                     break;
             }

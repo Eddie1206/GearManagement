@@ -43,12 +43,21 @@ public struct SingleRecipe : IComparable<SingleRecipe>
     public string model;
     public string gears;
     public string nums;
+    public int id;
 
-    public SingleRecipe(string model, string gears, string nums)
+    public SingleRecipe(string model, string gears, string nums, int id = -1)
     {
         this.model = model;
         this.gears = gears;
         this.nums = nums;
+        this.id = id;
+    }
+
+    public override string ToString()
+    {
+        string idTxt = id >= 0 ? id.ToString() : "null";
+        string res = $"{model} -> ID: {idTxt}\nGears: {gears}\nNums: {nums}";
+        return res;
     }
 
     public int CompareTo(SingleRecipe other)
@@ -389,6 +398,36 @@ class MotorRecipe
             //throw;
         }
         return gearInfos;
+    }
+
+    public List<SingleRecipe> GetRecipeList()
+    {
+        List<SingleRecipe> recipes = new List<SingleRecipe>();
+        try
+        {
+            using (var connection = new SqliteConnection(connectionStr))
+            {
+                connection.Open();
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT ID, Model, Gears, Quantity FROM MotorRecipe";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        int id = reader.GetInt32(0);
+                        string model = reader.GetString(1);
+                        string gears = reader.GetString(2);
+                        string quantity = reader.GetString(3);
+                        recipes.Add(new SingleRecipe(model, gears, quantity, id));
+                    }
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error in GetRecipeList(): {e.Message}");
+        }
+        return recipes;
     }
     public void DisplayRecipe()      //打印配方
     {
